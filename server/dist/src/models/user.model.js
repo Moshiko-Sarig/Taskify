@@ -73,5 +73,15 @@ class UserModel {
             throw error;
         }
     }
+    static async updateUserPassword(user_id, newPassword) {
+        try {
+            const result = await (0, db_1.executeQueryAsync)(user_queries_1.default.UPDATE_USER_PASSWORD, [newPassword, user_id]);
+            return result;
+        }
+        catch (error) {
+            console.error(error);
+            throw error;
+        }
+    }
 }
 exports.default = UserModel;

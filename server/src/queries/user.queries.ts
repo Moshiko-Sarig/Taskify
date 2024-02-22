@@ -15,6 +15,8 @@ const userQueries = {
 
     UPDATE_EMAIL_VERIFIED: 'UPDATE `users` SET email_verified = ? WHERE user_id = ?',
 
+    UPDATE_USER_PASSWORD: 'UPDATE `users` SET password = ? WHERE user_id = ?',
+
 }
 
 export default userQueries;

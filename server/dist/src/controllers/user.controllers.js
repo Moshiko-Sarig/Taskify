@@ -7,8 +7,8 @@ const user_model_1 = __importDefault(require("../models/user.model"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const user_config_1 = require("../config/user.config");
-const nodemailer_1 = __importDefault(require("nodemailer"));
 const cookie_enum_1 = require("../middlewares/cookie.enum");
+const email_service_1 = require("../services/email.service");
 class UserController {
     static async Register(req, res, next) {
         try {
@@ -24,22 +24,23 @@ class UserController {
         }
     }
     static async login(req, res) {
+        const { username, email, password } = req.body;
+        if (!(email || username) || !password) {
+            return res.status(400).json({ message: 'Email/Username and password are required.' });
+        }
         try {
-            const { username, email, password } = req.body;
-            if (!(email || username) || !password) {
-                return res.status(400).json({ message: 'Email/Username and password are required.' });
-            }
             const user = await user_model_1.default.login({ username, email, password });
             if (!user) {
                 return res.status(401).json('Incorrect login information. Please try again.');
             }
-            const token = jsonwebtoken_1.default.sign({ user }, process.env.TOKEN_SECRET, { expiresIn: '30min' });
+            const token = jsonwebtoken_1.default.sign({ id: user.id }, process.env.TOKEN_SECRET, { expiresIn: '30min' });
             res.cookie(cookie_enum_1.CookieEnum.Taskify_Cookie, token, {
                 maxAge: 30 * 60 * 1000,
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-            }).json({ success: true, token });
+            });
+            res.json({ success: true, user: { id: user.id, first_name: user.first_name }, token });
         }
         catch (error) {
             console.log(error);
@@ -78,25 +79,48 @@ class UserController {
                 return res.status(404).json({ error: 'User not found' });
             }
             const token = jsonwebtoken_1.default.sign({ id: emailExists[0].user_id }, user_config_1.verifyEmailConfig.EMAIL_SECRET, { expiresIn: '10min' });
-            const transporter = nodemailer_1.default.createTransport(user_config_1.verifyEmailConfig.emailTransport);
-            const mailOptions = {
-                from: user_config_1.verifyEmailConfig.emailFrom,
-                to: email,
-                subject: 'Email Verification',
-                html: `
-          <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.5;">
-            <h1 style="font-size: 24px;">Email Verification</h1>
-            <p>Click the link below to verify your email:</p>
-            <a href="${user_config_1.verifyEmailConfig.CLIENT_URL}/verify-email?token=${token}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">Verify Email</a>
-          </div>
-        `,
-            };
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) {
-                    console.log(error);
-                    return res.status(500).json({ error: 'Error sending email' });
+            const emailHtml = email_service_1.EmailService.getVerificationEmailHtml(token);
+            await email_service_1.EmailService.sendEmail(email, 'Email Verification', emailHtml);
+            res.json({ message: 'Verification email sent successfully.' });
+        }
+        catch (error) {
+            console.error(error);
+            res.status(500).json({ success: false, message: 'Server error.' });
+        }
+    }
+    static async SendResetPasswordEmail(req, res) {
+        try {
+            const { email } = req.body;
+            const emailExists = await user_model_1.default.checkIfEmailExists(email);
+            if (emailExists.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            const token = jsonwebtoken_1.default.sign({ id: emailExists[0].user_id }, user_config_1.recoverPasswordConfig.EMAIL_SECRET, { expiresIn: '10min' });
+            const emailHtml = email_service_1.EmailService.getResetPasswordEmailHtml(token);
+            await email_service_1.EmailService.sendEmail(email, 'Password Reset', emailHtml);
+            res.json({ message: 'Password reset email sent' });
+        }
+        catch (error) {
+            console.error(error);
+            res.status(500).json({ success: false, message: 'Server error.' });
+        }
+    }
+    static async updateExistPassword(req, res) {
+        try {
+            const { token, password } = req.body;
+            jsonwebtoken_1.default.verify(token, user_config_1.recoverPasswordConfig.EMAIL_SECRET, async (err, decoded) => {
+                if (err || !decoded || typeof decoded === 'string') {
+                    return res.status(400).json({ error: 'Invalid or expired reset token' });
                 }
-                res.json({ message: 'Verification email sent' });
+                const jwtPayload = decoded;
+                const userId = jwtPayload.id;
+                if (!jwtPayload.id) {
+                    return res.status(400).json({ error: 'Invalid token payload' });
+                }
+                const salt = await bcryptjs_1.default.genSalt(10);
+                const hashedPassword = await bcryptjs_1.default.hash(password, salt);
+                await user_model_1.default.updateUserPassword(userId, hashedPassword);
+                res.status(200).json({ message: 'Password updated successfully' });
             });
         }
         catch (error) {

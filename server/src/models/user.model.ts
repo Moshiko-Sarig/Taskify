@@ -43,12 +43,12 @@ class UserModel {
         } else {
             return null;
         }
-    
+
         if (!user || user.length < 1) return null;
         const hashedPassword = user[0].password;
         const isPasswordMatch = await bcrypt.compare(credentials.password, hashedPassword);
         if (!isPasswordMatch) return null;
-        delete user[0].password; 
+        delete user[0].password;
         return user[0];
     }
 
@@ -75,6 +75,15 @@ class UserModel {
     static async updateUserEmailVerified(userId: number, emailVerified: boolean) {
         try {
             const result = await executeQueryAsync(userQueries.UPDATE_EMAIL_VERIFIED, [emailVerified, userId]);
+            return result;
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
+    }
+    static async updateUserPassword(user_id: number, newPassword: string) {
+        try {
+            const result = await executeQueryAsync(userQueries.UPDATE_USER_PASSWORD, [newPassword, user_id]);
             return result;
         } catch (error) {
             console.error(error);

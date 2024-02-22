@@ -11,8 +11,6 @@ router.get('/verify-email', user_controllers_1.default.verifyEmail);
 router.post("/register", user_validations_1.validateUserRegistration, user_controllers_1.default.Register);
 router.post("/login", user_controllers_1.default.login);
 router.post('/send-verification-email', user_controllers_1.default.sendVerificationEmail);
-// router.get('/verify-email', (req, res) => {
-//     console.log(req.query.token); // Log the token to see what's received
-//     
-// });
+router.post("/send-restart-password-email", user_controllers_1.default.SendResetPasswordEmail);
+router.patch('/update-password', user_controllers_1.default.updateExistPassword);
 exports.default = router;
