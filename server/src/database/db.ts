@@ -1,4 +1,4 @@
-import mysql, {Pool, MysqlError} from "mysql";
+import mysql, { Pool, MysqlError } from "mysql";
 
 const pool: Pool = mysql.createPool({
   host: process.env.DATABASE_HOST,
@@ -8,16 +8,38 @@ const pool: Pool = mysql.createPool({
   connectTimeout: 90000,
 });
 
-const testConnection = () => {
-  pool.query('SELECT 1', (err, results) => {
+
+pool.on('connection', (connection) => {
+  console.log('DB Connection established');
+  connection.on('error', (err: MysqlError | null) => {
     if (err) {
-      console.error("Failed to connect to database:", err);
-      return;
+      console.error(new Date(), 'MySQL error', err.code);
     }
-    console.log("Successfully connected to the database");
+  });
+  connection.on('close', (err: MysqlError | null) => {
+    if (err) {
+      console.error(new Date(), 'MySQL close', err.code);
+    }
+  });
+});
+
+const testConnection = async () => {
+  pool.getConnection((err, connection) => {
+    if (err) {
+      if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+        console.error('Database connection was closed.');
+      }
+      if (err.code === 'ER_CON_COUNT_ERROR') {
+        console.error('Database has too many connections.');
+      }
+      if (err.code === 'ECONNREFUSED') {
+        console.error('Database connection was refused.');
+      }
+    }
+    if (connection) connection.release();
+    return;
   });
 };
-
 testConnection();
 
 

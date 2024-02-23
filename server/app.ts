@@ -23,9 +23,6 @@ app.use("*", (req: Request, res: Response) => {
 
 app.use(errorHandler);
 
-
-
-
 const server = app.listen(process.env.APP_PORT, () => {
   console.log("Server is listening on port:", process.env.APP_PORT);
 }).on("error", (err: NodeJS.ErrnoException) => {

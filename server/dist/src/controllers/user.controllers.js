@@ -8,6 +8,7 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const user_config_1 = require("../config/user.config");
 const cookie_enum_1 = require("../middlewares/cookie.enum");
+const application_error_1 = __importDefault(require("../errors/application.error"));
 const email_service_1 = require("../services/email.service");
 class UserController {
     static async Register(req, res, next) {
@@ -19,19 +20,18 @@ class UserController {
             res.status(201).json({ success: true, user: newUser });
         }
         catch (error) {
-            console.log(error);
-            res.status(500).json({ success: false, message: 'SERVER ERROR!' });
+            next(error);
         }
     }
-    static async login(req, res) {
+    static async login(req, res, next) {
         const { username, email, password } = req.body;
         if (!(email || username) || !password) {
-            return res.status(400).json({ message: 'Email/Username and password are required.' });
+            throw new application_error_1.default('Email/Username and password are required.', 400);
         }
         try {
             const user = await user_model_1.default.login({ username, email, password });
             if (!user) {
-                return res.status(401).json('Incorrect login information. Please try again.');
+                throw new application_error_1.default('Incorrect login information. Please try again.', 401);
             }
             const token = jsonwebtoken_1.default.sign({ id: user.id }, process.env.TOKEN_SECRET, { expiresIn: '30min' });
             res.cookie(cookie_enum_1.CookieEnum.Taskify_Cookie, token, {
@@ -44,39 +44,38 @@ class UserController {
         }
         catch (error) {
             console.log(error);
-            res.status(500).json({ success: false, message: error.message });
+            next(error);
         }
     }
-    static async verifyEmail(req, res) {
+    static async verifyEmail(req, res, next) {
         try {
             const token = req.query.token;
             if (typeof token !== 'string') {
-                return res.status(400).json({ error: 'Invalid token' });
+                throw new application_error_1.default('Invalid token', 400);
             }
             jsonwebtoken_1.default.verify(token, user_config_1.verifyEmailConfig.EMAIL_SECRET, async (err, decoded) => {
                 if (err || !decoded || typeof decoded === 'string') {
-                    return res.status(400).json({ error: 'Invalid or expired verification token' });
+                    throw new application_error_1.default('Invalid or expired verification token', 400);
                 }
                 const jwtPayload = decoded;
                 const userId = jwtPayload.id;
                 if (!jwtPayload.id) {
-                    return res.status(400).json({ error: 'Invalid token payload' });
+                    throw new application_error_1.default('Invalid or expired verification token', 400);
                 }
                 await user_model_1.default.updateUserEmailVerified(userId, true);
                 res.status(200).redirect('http://localhost:5173/email-verified');
             });
         }
         catch (error) {
-            console.log(error);
-            res.status(500).json({ success: false, message: 'SERVER ERROR!' });
+            next(error);
         }
     }
-    static async sendVerificationEmail(req, res) {
+    static async sendVerificationEmail(req, res, next) {
         try {
             const { email } = req.body;
             const emailExists = await user_model_1.default.checkIfEmailExists(email);
             if (emailExists.length === 0) {
-                return res.status(404).json({ error: 'User not found' });
+                throw new application_error_1.default('User not found', 404);
             }
             const token = jsonwebtoken_1.default.sign({ id: emailExists[0].user_id }, user_config_1.verifyEmailConfig.EMAIL_SECRET, { expiresIn: '10min' });
             const emailHtml = email_service_1.EmailService.getVerificationEmailHtml(token);
@@ -85,15 +84,15 @@ class UserController {
         }
         catch (error) {
             console.error(error);
-            res.status(500).json({ success: false, message: 'Server error.' });
+            next(error);
         }
     }
-    static async SendResetPasswordEmail(req, res) {
+    static async SendResetPasswordEmail(req, res, next) {
         try {
             const { email } = req.body;
             const emailExists = await user_model_1.default.checkIfEmailExists(email);
             if (emailExists.length === 0) {
-                return res.status(404).json({ error: 'User not found' });
+                throw new application_error_1.default('User not found', 404);
             }
             const token = jsonwebtoken_1.default.sign({ id: emailExists[0].user_id }, user_config_1.recoverPasswordConfig.EMAIL_SECRET, { expiresIn: '10min' });
             const emailHtml = email_service_1.EmailService.getResetPasswordEmailHtml(token);
@@ -102,20 +101,20 @@ class UserController {
         }
         catch (error) {
             console.error(error);
-            res.status(500).json({ success: false, message: 'Server error.' });
+            next(error);
         }
     }
-    static async updateExistPassword(req, res) {
+    static async updateExistPassword(req, res, next) {
         try {
             const { token, password } = req.body;
             jsonwebtoken_1.default.verify(token, user_config_1.recoverPasswordConfig.EMAIL_SECRET, async (err, decoded) => {
                 if (err || !decoded || typeof decoded === 'string') {
-                    return res.status(400).json({ error: 'Invalid or expired reset token' });
+                    throw new application_error_1.default('Invalid or expired reset token', 400);
                 }
                 const jwtPayload = decoded;
                 const userId = jwtPayload.id;
                 if (!jwtPayload.id) {
-                    return res.status(400).json({ error: 'Invalid token payload' });
+                    throw new application_error_1.default('Invalid token payload', 400);
                 }
                 const salt = await bcryptjs_1.default.genSalt(10);
                 const hashedPassword = await bcryptjs_1.default.hash(password, salt);
@@ -124,8 +123,7 @@ class UserController {
             });
         }
         catch (error) {
-            console.log(error);
-            res.status(500).json({ success: false, message: 'SERVER ERROR!' });
+            next(error);
         }
     }
 }

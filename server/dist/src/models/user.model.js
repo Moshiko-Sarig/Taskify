@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const db_1 = require("../database/db");
+const application_error_1 = __importDefault(require("../errors/application.error"));
 const user_queries_1 = __importDefault(require("../queries/user.queries"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 class UserModel {
@@ -19,8 +20,7 @@ class UserModel {
             return result;
         }
         catch (error) {
-            console.error(error);
-            throw error;
+            throw new application_error_1.default('Failed to add new user', 500);
         }
     }
     static async login(credentials) {
@@ -49,8 +49,7 @@ class UserModel {
             return result;
         }
         catch (error) {
-            console.error(error);
-            throw error;
+            throw new application_error_1.default('Database operation failed', 500);
         }
     }
     static async checkIfUsernameExists(username) {
@@ -59,8 +58,7 @@ class UserModel {
             return result;
         }
         catch (error) {
-            console.error(error);
-            throw error;
+            throw new application_error_1.default('Database operation failed', 500);
         }
     }
     static async updateUserEmailVerified(userId, emailVerified) {
@@ -69,8 +67,7 @@ class UserModel {
             return result;
         }
         catch (error) {
-            console.error(error);
-            throw error;
+            throw new application_error_1.default('Database operation failed', 500);
         }
     }
     static async updateUserPassword(user_id, newPassword) {
@@ -79,8 +76,7 @@ class UserModel {
             return result;
         }
         catch (error) {
-            console.error(error);
-            throw error;
+            throw new application_error_1.default('Failed to update password', 500);
         }
     }
 }

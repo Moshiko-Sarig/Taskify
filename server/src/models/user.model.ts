@@ -1,4 +1,5 @@
 import { executeQueryAsync } from "../database/db";
+import ApplicationError from "../errors/application.error";
 import userQueries from "../queries/user.queries";
 import bcrypt from "bcryptjs";
 
@@ -29,8 +30,7 @@ class UserModel {
             return result;
         }
         catch (error) {
-            console.error(error);
-            throw error;
+            throw new ApplicationError('Failed to add new user', 500);
         }
     }
 
@@ -57,8 +57,7 @@ class UserModel {
             const result = await executeQueryAsync(userQueries.CHECK_IF_EMAIL_EXIST, [email]);
             return result;
         } catch (error) {
-            console.error(error);
-            throw error;
+            throw new ApplicationError('Database operation failed',500);
         }
     }
 
@@ -67,8 +66,7 @@ class UserModel {
             const result = await executeQueryAsync(userQueries.CHECK_IF_USERNAME_EXIST, [username]);
             return result;
         } catch (error) {
-            console.error(error);
-            throw error;
+            throw new ApplicationError('Database operation failed',500);
         }
     }
 
@@ -77,8 +75,7 @@ class UserModel {
             const result = await executeQueryAsync(userQueries.UPDATE_EMAIL_VERIFIED, [emailVerified, userId]);
             return result;
         } catch (error) {
-            console.error(error);
-            throw error;
+            throw new ApplicationError('Database operation failed',500);
         }
     }
     static async updateUserPassword(user_id: number, newPassword: string) {
@@ -86,8 +83,7 @@ class UserModel {
             const result = await executeQueryAsync(userQueries.UPDATE_USER_PASSWORD, [newPassword, user_id]);
             return result;
         } catch (error) {
-            console.error(error);
-            throw error;
+            throw new ApplicationError('Failed to update password', 500);
         }
     }
 }

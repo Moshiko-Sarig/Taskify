@@ -21,20 +21,19 @@ class UserController {
       const newUser = await UserModel.addUser(user);
       res.status(201).json({ success: true, user: newUser });
     } catch (error) {
-      console.log(error);
-      res.status(500).json({ success: false, message: 'SERVER ERROR!' });
+      next(error);
     }
   }
 
-  static async login(req: Request, res: Response) {
+  static async login(req: Request, res: Response, next: NextFunction) {
     const { username, email, password } = req.body;
     if (!(email || username) || !password) {
-      return res.status(400).json({ message: 'Email/Username and password are required.' });
+      throw new ApplicationError('Email/Username and password are required.', 400);
     }
     try {
       const user = await UserModel.login({ username, email, password });
       if (!user) {
-        return res.status(401).json('Incorrect login information. Please try again.');
+        throw new ApplicationError('Incorrect login information. Please try again.', 401);
       }
       const token = jwt.sign({ id: user.id }, process.env.TOKEN_SECRET as string, { expiresIn: '30min' });
       res.cookie(CookieEnum.Taskify_Cookie, token, {
@@ -46,42 +45,41 @@ class UserController {
       res.json({ success: true, user: { id: user.id, first_name: user.first_name }, token });
     } catch (error) {
       console.log(error);
-      res.status(500).json({ success: false, message: (error as Error).message });
+      next(error)
     }
   }
 
-  static async verifyEmail(req: Request, res: Response) {
+  static async verifyEmail(req: Request, res: Response, next: NextFunction) {
     try {
       const token = req.query.token;
       if (typeof token !== 'string') {
-        return res.status(400).json({ error: 'Invalid token' });
+        throw new ApplicationError('Invalid token', 400);
       }
       jwt.verify(token, verifyEmailConfig.EMAIL_SECRET, async (err, decoded) => {
         if (err || !decoded || typeof decoded === 'string') {
-          return res.status(400).json({ error: 'Invalid or expired verification token' });
+          throw new ApplicationError('Invalid or expired verification token', 400);
         }
         const jwtPayload = decoded as JwtPayload;
         const userId = jwtPayload.id;
         if (!jwtPayload.id) {
-          return res.status(400).json({ error: 'Invalid token payload' });
+          throw new ApplicationError('Invalid or expired verification token', 400);
         }
         await UserModel.updateUserEmailVerified(userId, true);
         res.status(200).redirect('http://localhost:5173/email-verified');
       });
     } catch (error) {
-      console.log(error);
-      res.status(500).json({ success: false, message: 'SERVER ERROR!' });
+      next(error);
+
     }
   }
 
 
-  static async sendVerificationEmail(req: Request, res: Response) {
+  static async sendVerificationEmail(req: Request, res: Response, next: NextFunction) {
     try {
       const { email } = req.body;
       const emailExists = await UserModel.checkIfEmailExists(email);
       if (emailExists.length === 0) {
-
-        return res.status(404).json({ error: 'User not found' });
+        throw new ApplicationError('User not found', 404);
       }
       const token = jwt.sign({ id: emailExists[0].user_id }, verifyEmailConfig.EMAIL_SECRET, { expiresIn: '10min' });
       const emailHtml = EmailService.getVerificationEmailHtml(token);
@@ -91,15 +89,15 @@ class UserController {
       res.json({ message: 'Verification email sent successfully.' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, message: 'Server error.' });
+      next(error);
     }
   }
-  static async SendResetPasswordEmail(req: Request, res: Response) {
+  static async SendResetPasswordEmail(req: Request, res: Response, next: NextFunction) {
     try {
       const { email } = req.body;
       const emailExists = await UserModel.checkIfEmailExists(email);
       if (emailExists.length === 0) {
-        return res.status(404).json({ error: 'User not found' });
+        throw new ApplicationError('User not found', 404);
       }
       const token = jwt.sign({ id: emailExists[0].user_id }, recoverPasswordConfig.EMAIL_SECRET, { expiresIn: '10min' });
       const emailHtml = EmailService.getResetPasswordEmailHtml(token);
@@ -109,21 +107,21 @@ class UserController {
       res.json({ message: 'Password reset email sent' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ success: false, message: 'Server error.' });
+      next(error);
     }
   }
 
-  static async updateExistPassword(req: Request, res: Response) {
+  static async updateExistPassword(req: Request, res: Response, next: NextFunction) {
     try {
       const { token, password } = req.body;
       jwt.verify(token, recoverPasswordConfig.EMAIL_SECRET, async (err: any, decoded: any) => {
         if (err || !decoded || typeof decoded === 'string') {
-          return res.status(400).json({ error: 'Invalid or expired reset token' });
+          throw new ApplicationError('Invalid or expired reset token', 400);
         }
         const jwtPayload = decoded as JwtPayload;
         const userId = jwtPayload.id;
         if (!jwtPayload.id) {
-          return res.status(400).json({ error: 'Invalid token payload' });
+          throw new ApplicationError('Invalid token payload', 400);
         }
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -131,8 +129,7 @@ class UserController {
         res.status(200).json({ message: 'Password updated successfully' });
       });
     } catch (error) {
-      console.log(error);
-      res.status(500).json({ success: false, message: 'SERVER ERROR!' });
+      next(error);
     }
   }
 
