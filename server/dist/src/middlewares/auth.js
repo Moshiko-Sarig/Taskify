@@ -26,35 +26,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const dotenv = __importStar(require("dotenv"));
-dotenv.config();
-const cors_1 = __importDefault(require("cors"));
-const cookie_parser_1 = __importDefault(require("cookie-parser"));
-const user_routes_1 = __importDefault(require("./src/routes/user.routes"));
-const errorHandler_1 = require("./src/middlewares/errorHandler");
-const tasks_routes_1 = __importDefault(require("./src/routes/tasks.routes"));
-const app = (0, express_1.default)();
-app.use(express_1.default.json());
-app.use((0, cookie_parser_1.default)());
-app.use((0, cors_1.default)({
-    origin: process.env.CLIENT_ORIGIN,
-    credentials: true
-}));
-app.use("/api/v1", [user_routes_1.default, tasks_routes_1.default]);
-app.use("*", (req, res) => {
-    res.status(404).send(`Route not found ${req.originalUrl}`);
-});
-app.use(errorHandler_1.errorHandler);
-const server = app.listen(process.env.APP_PORT, () => {
-    console.log("Server is listening on port:", process.env.APP_PORT);
-}).on("error", (err) => {
-    console.log(err);
-    if (err.code === "EADDRINUSE") {
-        console.log("Error: Address in use");
+const jwt = __importStar(require("jsonwebtoken"));
+const cookie_enum_1 = require("./cookie.enum");
+const application_error_1 = __importDefault(require("../errors/application.error"));
+function authenticateUser(req, res, next) {
+    const token = req.cookies[cookie_enum_1.CookieEnum.Taskify_Cookie];
+    if (!token)
+        throw new application_error_1.default('Access Denied', 401);
+    try {
+        const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+        req.user = verified;
+        next();
     }
-    else {
-        console.log("Error: Unknown error");
+    catch (err) {
+        throw new application_error_1.default('Invalid Token!', 400);
     }
-});
-exports.default = server;
+}
+exports.default = authenticateUser;

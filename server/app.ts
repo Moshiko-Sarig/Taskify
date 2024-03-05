@@ -5,6 +5,7 @@ import cors from "cors";
 import cookieParser from 'cookie-parser';
 import userRoutes from "./src/routes/user.routes";
 import { errorHandler } from './src/middlewares/errorHandler';
+import tasksRoutes from "./src/routes/tasks.routes"
 
 const app = express();
 
@@ -15,7 +16,7 @@ app.use(cors({
   credentials: true
 }));
 
-app.use("/api/v1", [userRoutes,]);
+app.use("/api/v1", [userRoutes,tasksRoutes]);
 
 app.use("*", (req: Request, res: Response) => {
   res.status(404).send(`Route not found ${req.originalUrl}`);

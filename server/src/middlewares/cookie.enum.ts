@@ -1,1 +1,1 @@
-export enum CookieEnum { Taskify_Cookie = "Taskify cookie " }  
+export enum CookieEnum { Taskify_Cookie = "Taskify cookie" }  
